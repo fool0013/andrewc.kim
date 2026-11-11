@@ -24,7 +24,7 @@ to tell apart. both sequences go through esm-2, a protein language model that tu
 vectors. it won a $2000 grant, and we presented it to representative rich mccormick.</p>
 
 <figure class="shot tall">
-    <a href="/img/abyss-poster.jpg"><img src="/img/abyss-poster.jpg" width="820" height="1255" alt="the abyss research poster standing in a room. the title and the section headings are visible, but the body text is too out of focus to read" loading="lazy"></a>
+    <a href="/img/abyss-poster.jpg"><img src="/img/abyss-poster.jpg" width="820" height="1255" alt="the abyss poster, out of focus" loading="lazy"></a>
     <figcaption>the poster. the only picture i have of it, and it's out of focus</figcaption>
 </figure>
 
@@ -56,10 +56,9 @@ has to form an opinion about the whole protein (ha stupid), it only has to find 
 the same shape as the actual biology, where binding happens at a single site.</p>
 
 <figure class="shot">
-    <img src="/img/cdr3-windows.png" width="1258" height="493" alt="a line chart of window score against position along the target protein, running from 0 to about 480 amino acids. the line moves up and down across the whole length and reaches its highest point near position 416, which is marked with a red dot" loading="lazy">
-    <figcaption>every 16-amino-acid window of one target, scored against a loop the antibody really
-    binds. the pair's score is just the highest point. at 0.62 i would not read that peak as the
-    real binding site, it is only where this model looks hardest</figcaption>
+    <img src="/img/cdr3-windows.png" width="1258" height="493" alt="window score along the protein, peak at 416" loading="lazy">
+    <figcaption>one target's windows. the peak is 0.62, so that's where the model looks
+      hardest, not necessarily the real site</figcaption>
 </figure>
 
 <figure class="code">
@@ -107,7 +106,7 @@ at a few patches at once instead of only the single best one, since real binding
 than sixteen amino acids.</p>
 
 
-<p class="dim"><a href="../../files/cdr3-abyss.zip">download the code</a> (191 kb zip)</p>
+<p class="dim"><a href="/files/cdr3-abyss.zip">download the code</a> (191 kb zip)</p>
 
 <footer>
     <span title="this page, judged like a cp submission: 1 s limit">verdict:</span>

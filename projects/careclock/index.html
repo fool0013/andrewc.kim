@@ -20,7 +20,7 @@ labels mention each other.</p>
 <p><a href="https://fool0013.github.io/careclock/#/demo">try the demo</a> (sample data, nothing to
 sign up for).</p>
 <figure class="shot">
-    <a href="/img/careclock.jpg"><img src="/img/careclock.jpg" width="900" height="499" alt="careclock with sample data: the today screen with a refill warning, an ibuprofen card showing when the next dose is allowed, and the fda label safety check flagging warfarin with aspirin" loading="lazy"></a>
+    <a href="/img/careclock.jpg"><img src="/img/careclock.jpg" width="900" height="499" alt="careclock on two phones and a tablet" loading="lazy"></a>
     <figcaption>the demo, on two phone sizes and a tablet</figcaption>
 </figure>
 
@@ -44,7 +44,7 @@ metoprolol succinate don't come through as potassium and succinate.</p>
 
 const own = new Set(termsFor(A));
 const hit = findMention(text, termsFor(B).filter((t) =&gt; !own.has(t)));</code></pre>
-<figcaption>a drug shares terms with its own class, so those get removed before the search</figcaption>
+<figcaption>class terms get stripped before the search</figcaption>
 </figure>
 <p>it checks both directions, since only one of the two labels usually carries the warning. a hit
 whose surrounding text contains contraindicated, fatal or bleeding is marked strong and sorted to
@@ -73,7 +73,7 @@ fifteen minutes, and stops after two hours, because an alarm still going four ho
 noise.</p>
 
 
-<p class="dim"><a href="../../files/careclock.zip">download the code</a> (418 kb zip)</p>
+<p class="dim"><a href="/files/careclock.zip">download the code</a> (418 kb zip)</p>
 
 <footer>
     <span title="this page, judged like a cp submission: 1 s limit">verdict:</span>

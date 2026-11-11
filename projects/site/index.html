@@ -17,7 +17,7 @@
 <p>the site you're on. there's no framework, no build step and nothing to install. every page is an
 html file i typed, the css is one stylesheet, and the three scripts are plain js that import nothing.
 reading the whole site costs about 1.2 mb, and 1.1 mb of that is photos. the html, css and js
-together come to 87 kb. the music and the two clips are another 48 mb that nobody downloads
+together come to 86 kb. the music and the two clips are another 48 mb that nobody downloads
 unless they press play.</p>
 <p>it looks like this on purpose. browser-default serif, black on white, one column down the middle.
 no webfont, so there's nothing to download before the text shows up, and nothing to hydrate before
@@ -49,13 +49,12 @@ punctuation is nothing anyone needs read out. they hold still if you've asked yo
 motion. nothing overflows at 375
 px wide. i check both with headless edge before i push.</p>
 <p>every photo on the site goes through a script that strips exif on the way out, so nothing i
-drop in can leak gps. screenshots come from another script that renders code to an image with
-pygments instead of grabbing my editor, because a real screenshot of my editor shows my file paths
-and my username.</p>
+drop in can leak gps. the code on these pages is text in a pre block, not screenshots, so you
+can copy it.</p>
 <p>it deploys from a github repo to github pages, with a cname file pointing at andrewc.kim.</p>
 
 
-<p class="dim"><a href="../../files/portfolio.zip">download this site</a> (1.8 mb zip)</p>
+<p class="dim"><a href="/files/portfolio.zip">download this site</a> (1.8 mb zip)</p>
 
 <footer>
     <span title="this page, judged like a cp submission: 1 s limit">verdict:</span>
