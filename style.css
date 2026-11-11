@@ -27,6 +27,7 @@ code {
 footer {
     font-size: 14px;
     color: #666;
+    margin-top: 28px;
 }
 
 #verdict.ac {
@@ -91,10 +92,6 @@ nav {
     flex-wrap: wrap;
     justify-content: center;
     gap: 4px 22px;
-}
-
-.home footer {
-    margin-top: 28px;
 }
 
 #tank {

@@ -38,10 +38,11 @@ public domain photo off wikimedia commons, so it costs nobody anything for me to
 
 <h2>the footer judges the page</h2>
 <p>every page grades its own load the way a competitive programming judge grades a submission. it
-pulls the real load time out of the navigation timing api and the real transfer size off the same
-entry, then prints accepted under a one second limit and time limit exceeded over it. the numbers
-aren't decoration, they're whatever your browser actually measured. it usually comes back around
-60 ms and 1 kb.</p>
+pulls the real load time out of the navigation timing api and adds up what every file on the page
+actually cost to fetch, then prints accepted under a one second limit and time limit exceeded over
+it. the numbers aren't decoration, they're whatever your browser measured. a page of just text
+comes back around 4 kb. the home page is nearer 150 because of the banner. the music and the clips
+preload nothing, so they only count if you press play.</p>
 
 <h2>the parts nobody sees</h2>
 <p>every page passes axe with zero violations, which mostly meant writing real alt text, keeping one
@@ -58,7 +59,14 @@ and my username.</p>
 
 <p class="dim"><a href="../../files/portfolio.zip">download this site</a> (1.8 mb zip)</p>
 
+<footer>
+    <span title="this page, judged like a cp submission: 1 s limit">verdict:</span>
+    <span id="verdict">running on test 1...</span>
+</footer>
+
 </main>
+
+<script src="../../verdict.js"></script>
 
 </body>
 </html>
