@@ -76,11 +76,7 @@ footer {
     width: 560px;
     max-width: 100%;
     height: auto;
-}
-
-.intro {
-    max-width: 30em;
-    margin: 0 0 18px;
+    margin-bottom: 18px;
 }
 
 .banner.flipped {
