@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>triggerbot - andrew kim</title>
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+</head>
+
+<body>
+
+<main class="page">
+
+<h1><a href="../../index.html">andrew kim</a> / <a href="../../projects.html">projects</a> / triggerbot</h1>
+
+<p>a triggerbot for shooters. it watches a tiny box at the center of the screen and clicks the
+instant an enemy-colored pixel shows up in it. it never moves the mouse, so aiming is still on you.
+it just clicks faster than you would.</p>
+<p>i wrote it for valorant and it worked. the color range further down is valorant's purple enemy
+outline. the account i ran it on got banned, which was the right call, and the only thing i point it
+at now is a target i wrote for it.</p>
+
+<h2>what it looks for</h2>
+<p>games that draw a bright outline around enemies make this easy. pick the outline color and watch
+for it. the box is only 6x6 pixels dead center, so the bot fires when the crosshair is already
+on target rather than hunting across the screen. the color range is in hsv, which holds up better
+than rgb when the outline shifts with lighting, and there's a fire delay so it taps instead of
+holding.</p>
+<figure class="code">
+<pre tabindex="0"><code>FOV_SIZE = 6
+
+LOWER_COLOR = np.array([145, 120, 180])
+UPPER_COLOR = np.array([155, 255, 255])
+KERNEL = np.ones((2, 2), np.uint8)
+
+FIRE_DELAY = 0.15
+TOGGLE_KEY = 'v'
+
+monitor = {
+    "top": CENTER_Y - FOV_SIZE // 2,
+    "left": CENTER_X - FOV_SIZE // 2,
+    "width": FOV_SIZE,
+    "height": FOV_SIZE,
+}</code></pre>
+</figure>
+
+<h2>the loop</h2>
+<p>each pass grabs the box with mss, converts it to hsv, and builds a mask of the pixels inside the
+color range. a quick erode-then-dilate drops stray single pixels so a lone noisy dot can't make it
+fire. if anything survives, there's a target in the box, and it clicks.</p>
+<figure class="code">
+<pre tabindex="0"><code>with mss.mss() as sct:
+    while True:
+        if keyboard.is_pressed(QUIT_KEY): break
+
+        if bot_active:
+            img = np.array(sct.grab(monitor))
+            hsv = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2HSV)
+            mask = cv2.inRange(hsv, LOWER_COLOR, UPPER_COLOR)
+            mask = cv2.erode(mask, KERNEL, iterations=1)
+            mask = cv2.dilate(mask, KERNEL, iterations=1)
+
+            if cv2.countNonZero(mask) &gt; 0:
+                click()
+                time.sleep(FIRE_DELAY)
+
+        time.sleep(0.001)</code></pre>
+</figure>
+
+<h2>something to shoot at</h2>
+<p>i wasn't going to drop into another live match to find out whether it still works, so i built the
+target instead. it opens a black fullscreen window, flashes a magenta square on the exact pixel the
+bot is watching, and times the gap between the square appearing and the click landing. it counts the
+squares the bot slept through and the clicks it fired at an empty screen.</p>
+<p>the square is rgb 230, 50, 230. that converts to hsv 150, 200, 230, which sits in the middle of
+the range above, and all 36 pixels survive the erode and dilate, so the mask is guaranteed to
+light up. the target also reads your screen size first, because the bot hardcodes 1920 by 1080 and
+watches the wrong pixel on anything else.</p>
+
+<figure class="shot">
+    <video controls preload="none" poster="../../img/triggerbot-poster.jpg" width="1280" height="720" muted>
+        <source src="../../files/triggerbot.mp4" type="video/mp4">
+        <track kind="captions" src="../../files/triggerbot.vtt" srclang="en" label="english">
+    </video>
+    <figcaption>twenty rounds against the target. the readout counts hits, misses and clicks at
+    nothing, and the bot's mean reaction here was 43 ms. no audio</figcaption>
+</figure>
+<figure class="code">
+<pre tabindex="0"><code>def show_patch():
+    canvas.itemconfigure(patch, state="normal")
+    root.update_idletasks()
+    state["shown_at"] = time.perf_counter()
+    state["pending"] = root.after(SHOW_MS, timeout)
+
+def on_click(event):
+    if state["shown_at"] is None:
+        state["false"] += 1
+        draw_readout("clicked with nothing on screen")
+        return
+    state["latencies"].append(time.perf_counter() - state["shown_at"])
+    state["hits"] += 1</code></pre>
+</figure>
+
+
+<p class="dim"><a href="../../files/triggerbot.zip">download the code</a> (2 kb zip)</p>
+
+</main>
+
+</body>
+</html>

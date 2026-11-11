@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ti-32 - andrew kim</title>
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+</head>
+
+<body>
+
+<main class="page">
+
+<h1><a href="../../index.html">andrew kim</a> / <a href="../../projects.html">projects</a> / ti-32</h1>
+
+<p>a ti-84 that can ask an ai. it's my build of chromalock's
+<a href="https://github.com/chromalock/TI-32">ti-32</a>. an esp32 inside the calculator connects to
+wifi and talks to a server, so a program on the calculator can send a question and show the answer
+on screen. i skipped their pcb and soldered the esp32 straight into the calculator's circuit.</p>
+<p>i've never used it on a test.</p>
+
+<figure class="shot">
+    <a href="../../img/ti32.jpg"><img src="../../img/ti32.jpg" width="899" height="699" alt="left: a ti-84 plus screen showing a short chat, where the user types hello ai and the reply reads hello, how can i assist you today. right: the calculator opened up, with a small esp32 board wired by hand onto its green circuit board" loading="lazy"></a>
+    <figcaption>answering on the calculator's own screen, and the esp32 wired straight onto the board</figcaption>
+</figure>
+
+<h2>my server</h2>
+<p>chromalock's repo comes with its own server. i wrote a smaller one. it takes the question from the
+calculator, asks an openai model with a prompt that keeps answers short enough for the screen, and
+sends back plain text, since that's what the calculator side expects.</p>
+<figure class="code">
+<pre tabindex="0"><code>const client = new OpenAI({ apiKey: process.env.TI32_OPENAI_KEY });
+const PORT = process.env.PORT || 8000;
+const MODEL = process.env.MODEL || 'gpt-4.1-mini';
+const SYSTEM_PROMPT = 'You are a concise advanced math, calculus, language arts, and computer science assistant. Show steps clearly but keep answers short enough to fit on a TI-84-sized screen.';
+
+app.get('/gpt/ask', async (req, res) =&gt; {
+  const question = (req.query.question || '').toString().trim();
+  if (!question) return res.status(400).type('text/plain').send('no question');
+
+  try {
+    const completion = await client.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: question },
+      ],
+      max_tokens: 400,
+    });
+    const reply = completion.choices[0]?.message?.content?.trim() || 'no response';
+    console.log(`q: ${question}\na: ${reply}`);
+    res.type('text/plain').send(reply);
+  } catch (err) {
+    console.error(err);
+    res.status(500).type('text/plain').send('error talking to gpt');
+  }
+});
+
+app.listen(PORT, () =&gt; console.log(`listening on ${PORT}`));</code></pre>
+</figure>
+
+
+<p class="dim"><a href="../../files/ti32-server.zip">download the server</a> (12 kb zip)</p>
+
+</main>
+
+</body>
+</html>

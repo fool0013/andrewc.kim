@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cdr3 - andrew kim</title>
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+</head>
+
+<body>
+
+<main class="page">
+
+<h1><a href="../../index.html">andrew kim</a> / <a href="../../projects.html">projects</a> / cdr3</h1>
+
+<p>a science fair project about antibody design, called abyss, built with daniel li. an antibody
+grabs its target through a short loop called cdr3, and which target it grabs depends mostly on that
+loop's sequence, so if you can score a loop against a target you can then go looking for loops that
+bind it better</p>
+<p>the data is about a thousand real antibody and target pairs pulled out of solved protein
+structures, plus the same proteins shuffled into pairs that don't go together so there's something
+to tell apart. both sequences go through esm-2, a protein language model that turns amino acids into
+vectors. it won a $2000 grant, and we presented it to representative rich mccormick.</p>
+
+<figure class="shot tall">
+    <a href="../../img/abyss-poster.jpg"><img src="../../img/abyss-poster.jpg" width="820" height="1255" alt="the abyss research poster standing in a room. the title and the section headings are visible, but the body text is too out of focus to read" loading="lazy"></a>
+    <figcaption>the poster. the only picture i have of it, and it's out of focus</figcaption>
+</figure>
+
+<h2>averaging buried the signal</h2>
+<p>my first model averaged each protein down into a single vector and pushed the target and the loop
+through a small network together. 0.55 auc, where 0.5 is a coin flip. that is barely better than
+nothing, so before i touched the model i went looking for the opposite problem, which is whether it
+was cheating. i trained one model on the target alone, trained another on the loop alone, and split
+the data so that no target protein ever appears in both the training and the testing half.</p>
+<figure class="code">
+<pre tabindex="0"><code>                           auc
+whole target, averaged     0.55
+  + interaction features   0.59
+  16-aa windows, best one  0.62
+
+target alone               0.50
+loop alone                 0.47</code></pre>
+</figure>
+<p>both controls land on guessing. neither sequence gives the answer away by itself, so there is no
+shortcut sitting in the data, and whatever the pair model knows has to be coming from the pair. the
+data was fine. the averaging was the problem. a target runs about 200 amino acids and an antibody
+only touches a handful of them, so flattening the whole protein into one vector buries the part that
+matters under everything that doesn't.</p>
+
+<h2>scoring patches instead of whole proteins</h2>
+<p>so i stopped averaging. the target gets cut into overlapping 16-amino-acid windows, every window
+is scored against the loop on its own, and the pair's score is just the best window. the model never
+has to form an opinion about the whole protein (ha stupid), it only has to find one patch that fits, and that is
+the same shape as the actual biology, where binding happens at a single site.</p>
+
+<figure class="shot">
+    <img src="../../img/cdr3-windows.png" width="1258" height="493" alt="a line chart of window score against position along the target protein, running from 0 to about 480 amino acids. the line moves up and down across the whole length and reaches its highest point near position 416, which is marked with a red dot" loading="lazy">
+    <figcaption>every 16-amino-acid window of one target, scored against a loop the antibody really
+    binds. the pair's score is just the highest point. at 0.62 i would not read that peak as the
+    real binding site, it is only where this model looks hardest</figcaption>
+</figure>
+
+<figure class="code">
+<pre tabindex="0"><code>class Binder(nn.Module):
+    def __init__(self, dim, hidden=128, dropout=0.3):
+        super().__init__()
+        self.window_proj = nn.Sequential(nn.Linear(dim, hidden), nn.ReLU())
+        self.cdr3_proj = nn.Sequential(nn.Linear(dim, hidden), nn.ReLU())
+        self.score = nn.Sequential(
+            nn.Linear(4 * hidden, hidden), nn.ReLU(), nn.Dropout(dropout), nn.Linear(hidden, 1)
+        )
+
+    def forward(self, window_batch, mask, cdr3_batch):
+        w = self.window_proj(window_batch)
+        c = self.cdr3_proj(cdr3_batch).unsqueeze(1).expand(-1, w.shape[1], -1)
+        pair = torch.cat([w, c, w * c, (w - c).abs()], -1)
+        per_window = self.score(pair).squeeze(-1).masked_fill(~mask, -1e9)
+        return per_window.max(1).values</code></pre>
+</figure>
+<p>that took it to 0.62. every number on this page is five-fold cross validation repeated over three
+seeds, grouped so that no target is ever on both sides of a split.</p>
+
+<h2>searching for a better loop</h2>
+<p>once something can score a pair you can go hunting for a good one. it starts from a real loop,
+mutates one amino acid at a time while keeping the cysteine that every cdr3 opens with, scores every
+candidate in the pool against the target, and keeps the best twenty. a few hundred rounds of that is
+a beam search over sequence space.</p>
+<figure class="code">
+<pre tabindex="0"><code>def mutate(seq, k=1):
+    s = list(seq)
+    L = len(s)
+    for _ in range(k):
+        i = random.randrange(1, L)
+        s[i] = random.choice(AA)
+    s[0] = 'C'
+    return "".join(s)</code></pre>
+</figure>
+
+<h2>where it stands</h2>
+<p>0.62 is real and its kinda shaky and it kinda sucks. the search optimizes
+against the scorer, so it only finds a better binder if the scorer is right, and at 0.62 the scorer
+is right more often than not and that is about all you can say for it. a thousand pairs is not much
+to work with. the next thing i would try is the window idea pushed further, letting the model look
+at a few patches at once instead of only the single best one, since real binding sites are bigger
+than sixteen amino acids.</p>
+
+
+<p class="dim"><a href="../../files/cdr3-abyss.zip">download the code</a> (191 kb zip)</p>
+
+</main>
+
+</body>
+</html>

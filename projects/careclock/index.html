@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>careclock - andrew kim</title>
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+</head>
+
+<body>
+
+<main class="page">
+
+<h1><a href="../../index.html">andrew kim</a> / <a href="../../projects.html">projects</a> / careclock</h1>
+
+<p>a medication reminder web app i made with nathaniel nam, only for the congressional app
+challenge. it installs on a phone like an app, works offline, and warns when two medicines' fda
+labels mention each other.</p>
+<p><a href="https://fool0013.github.io/careclock/#/demo">try the demo</a> (sample data, nothing to
+sign up for).</p>
+<figure class="shot">
+    <a href="../../img/careclock.jpg"><img src="../../img/careclock.jpg" width="900" height="499" alt="careclock with sample data: the today screen with a refill warning, an ibuprofen card showing when the next dose is allowed, and the fda label safety check flagging warfarin with aspirin" loading="lazy"></a>
+    <figcaption>the demo, on two phone sizes and a tablet</figcaption>
+</figure>
+
+<h2>matching two labels</h2>
+<p>the safety check reads real fda labels from openfda. the obvious way to do it doesn't work. a
+label almost never names the other drug you're taking, because it talks about classes instead, so
+searching aspirin's label for the word warfarin finds nothing while the warning sits right there
+under anticoagulants.</p>
+<p>so each medicine gets expanded into the words a label would actually use. warfarin becomes
+anticoagulant and blood thinner, anything ending in pril becomes ace inhibitor, anything ending in
+statin becomes statin. salt and dosage-form suffixes get stripped first, so potassium chloride and
+metoprolol succinate don't come through as potassium and succinate.</p>
+<figure class="code">
+<pre tabindex="0"><code>const CLASS_TERMS = [
+  [/warfarin|apixaban|rivaroxaban|dabigatran|heparin/, ['anticoagulant', 'blood thinner']],
+  [/aspirin|ibuprofen|naproxen|celecoxib|diclofenac/, ['nsaid', 'nonsteroidal anti-inflammatory']],
+  [/pril$/,   ['ace inhibitor', 'angiotensin converting enzyme']],
+  [/statin$/, ['statin', 'hmg-coa reductase']],
+  ...
+];
+
+const own = new Set(termsFor(A));
+const hit = findMention(text, termsFor(B).filter((t) =&gt; !own.has(t)));</code></pre>
+<figcaption>a drug shares terms with its own class, so those get removed before the search</figcaption>
+</figure>
+<p>it checks both directions, since only one of the two labels usually carries the warning. a hit
+whose surrounding text contains contraindicated, fatal or bleeding is marked strong and sorted to
+the top. it is a text search over labels and not a drug interaction database, which is exactly what
+the app tells you it is.</p>
+
+<h2>making a web page ring</h2>
+<p>an alarm is the part a web app is worst at. a browser won't let a page make noise until the
+person has touched it, so the audio context gets built on the first pointerdown and not before. the
+chime is three sine tones rather than a file, because a file is another thing to load and another
+thing to get wrong offline.</p>
+<figure class="code">
+<pre tabindex="0"><code>const REPEAT_MIN = 15;
+const GIVE_UP_MIN = 120;
+
+[659, 784, 1047].forEach((f, i) =&gt; {
+  const o = audio.createOscillator();
+  o.frequency.value = f;
+  g.gain.exponentialRampToValueAtTime(0.5, t0 + i * 0.35 + 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + i * 0.35 + 0.9);
+});</code></pre>
+</figure>
+<p>a closed tab can't run a timer either, so the same alert goes out through the service worker as
+a notification that won't dismiss itself. the loop checks every fifteen seconds, nags again after
+fifteen minutes, and stops after two hours, because an alarm still going four hours later is just
+noise.</p>
+
+
+<p class="dim"><a href="../../files/careclock.zip">download the code</a> (418 kb zip)</p>
+
+</main>
+
+</body>
+</html>

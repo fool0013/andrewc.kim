@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>calico 2026 - andrew kim</title>
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+</head>
+
+<body>
+
+<main class="page">
+
+<h1><a href="../../index.html">andrew kim</a> / <a href="../../projects.html">projects</a> / calico 2026</h1>
+
+<p>calico 2026 was a team programming contest. i competed with edison yang and daniel li. they took
+problems 9 to 12, the hardest ones, and i took the other eight. we got a perfect score, 100 out of
+100. results aren't out yet.</p>
+<p>all eight of my solutions are below. the contest gave a template for each problem that handles
+the input, so these are the solve functions.</p>
+
+<h2>shock</h2>
+<p>earthquakes hit a grid of blocks one after another. each one reaches every block within its
+radius, and a block's seismometer ends up showing the most recent earthquake that reached it, at a
+level of p squared minus the squared distance, plus one.</p>
+<p>going forward rewrites the same blocks over and over. going backward, from the last earthquake to
+the first, a block only ever needs to be set once, because the first earthquake to reach it going
+backward is the most recent one. to skip blocks that are already set, each row keeps a pointer to
+its next unset block, with path compression like a union-find, so every row of every earthquake
+jumps straight past the finished blocks.</p>
+<figure class="code">
+<pre tabindex="0"><code>vector&lt;vector&lt;int&gt;&gt; solve(int N, int M, int Q, vector&lt;int&gt;&amp; X, vector&lt;int&gt;&amp; Y, vector&lt;int&gt;&amp; P) {
+    vector&lt;vector&lt;int&gt;&gt; a(N, vector&lt;int&gt;(M, 0));
+    vector&lt;int&gt; nx(N * (M + 1));
+    iota(nx.begin(), nx.end(), 0);
+    auto find = [&amp;](int x) { while (nx[x] != x) x = nx[x] = nx[nx[x]]; return x; };
+    for (int i = Q - 1; i &gt;= 0; i--) {
+        int r0 = X[i], c0 = Y[i], p = P[i];
+        for (int r = r0 - p; r &lt;= r0 + p; r++) {
+            int v = p * p - (r - r0) * (r - r0), w = sqrt(v), b = r * (M + 1);
+            for (int c = find(b + c0 - w); c - b &lt;= c0 + w; c = find(c))
+                a[r][c - b] = v - (c - b - c0) * (c - b - c0) + 1, nx[c] = c + 1;
+        }
+    }
+    return a;
+}</code></pre>
+</figure>
+
+<h2>forgor</h2>
+<p>a two-run problem. in the first run the program sees a tree and has to print n numbers. in the
+second run it gets those numbers back with one of them replaced by -1, and it has to rebuild the
+tree. the trick is to root the tree at vertex 1 and write down every other vertex's parent, which takes
+n - 1 numbers, then put the xor of all of them in the spare slot. the whole list xors to zero, so
+whichever number goes missing is just the xor of the rest.</p>
+<figure class="code">
+<pre tabindex="0"><code>vector&lt;int&gt; solve_phase1(int N, vector&lt;pair&lt;int, int&gt;&gt;&amp; E) {
+    vector&lt;vector&lt;int&gt;&gt; adj(N + 1);
+    for (auto [u, v] : E) adj[u].push_back(v), adj[v].push_back(u);
+    vector&lt;int&gt; p(N + 1);
+    queue&lt;int&gt; q; q.push(1);
+    while (!q.empty()) {
+        int u = q.front(); q.pop();
+        for (int v : adj[u]) if (v != 1 &amp;&amp; !p[v]) p[v] = u, q.push(v);
+    }
+    vector&lt;int&gt; A(N);
+    for (int v = 2; v &lt;= N; v++) A[v - 1] = p[v], A[0] ^= p[v];
+    return A;
+}
+
+vector&lt;pair&lt;int, int&gt;&gt; solve_phase2(int N, vector&lt;int&gt;&amp; A) {
+    int x = 0, j = 0;
+    for (int i = 0; i &lt; N; i++) if (A[i] == -1) j = i; else x ^= A[i];
+    A[j] = x;
+    vector&lt;pair&lt;int, int&gt;&gt; E;
+    for (int i = 1; i &lt; N; i++) E.push_back({i + 1, A[i]});
+    return E;
+}</code></pre>
+</figure>
+
+<h2>galaxy</h2>
+<p>a grid of red, blue, and blank tiles. big ben can only step on tiles that match his current color, and blank tiles let him switch. one bfs over (tile, color) states labels every connected piece, so each query is just a lookup.</p>
+<figure class="code">
+<pre tabindex="0"><code>vector&lt;string&gt; solve(int N, int M, int Q, vector&lt;string&gt;&amp; G, vector&lt;pair&lt;int, int&gt;&gt;&amp; start, vector&lt;pair&lt;int, int&gt;&gt;&amp; end) {
+    auto ok = [&amp;](int r, int c, int m) {
+        return r &gt;= 0 &amp;&amp; r &lt; N &amp;&amp; c &gt;= 0 &amp;&amp; c &lt; M &amp;&amp; (G[r][c] == '.' || G[r][c] == (m ? 'R' : 'B'));
+    };
+    vector&lt;vector&lt;int&gt;&gt; comp(2, vector&lt;int&gt;(N * M, -1));
+    int dr[] = {1, -1, 0, 0}, dc[] = {0, 0, 1, -1}, k = 0;
+    auto bfs = [&amp;](int sr, int sc, int sm) {
+        queue&lt;array&lt;int, 3&gt;&gt; q;
+        comp[sm][sr * M + sc] = k, q.push({sr, sc, sm});
+        while (!q.empty()) {
+            auto [r, c, m] = q.front(); q.pop();
+            if (G[r][c] == '.' &amp;&amp; comp[!m][r * M + c] == -1) comp[!m][r * M + c] = k, q.push({r, c, !m});
+            for (int d = 0; d &lt; 4; d++) {
+                int nr = r + dr[d], nc = c + dc[d];
+                if (ok(nr, nc, m) &amp;&amp; comp[m][nr * M + nc] == -1) comp[m][nr * M + nc] = k, q.push({nr, nc, m});
+            }
+        }
+        k++;
+    };
+    for (int r = 0; r &lt; N; r++) for (int c = 0; c &lt; M; c++) for (int m = 0; m &lt; 2; m++)
+        if (comp[m][r * M + c] == -1 &amp;&amp; ok(r, c, m)) bfs(r, c, m);
+    vector&lt;string&gt; ans;
+    for (int i = 0; i &lt; Q; i++) {
+        int s = start[i].first * M + start[i].second, e = end[i].first * M + end[i].second;
+        ans.push_back(comp[0][s] == comp[0][e] || comp[0][s] == comp[1][e] ? "YES" : "NO");
+    }
+    return ans;
+}</code></pre>
+</figure>
+
+<h2>schedule</h2>
+<p>classes with one prerequisite each form a tree. each semester it takes up to k of the classes that are available, picking the ones with the longest chain of classes still behind them.</p>
+<figure class="code">
+<pre tabindex="0"><code>int solve(int N, int M, int K, vector&lt;int&gt; &amp;P){
+    vector&lt;vector&lt;int&gt;&gt; ch(N + 1);
+    for (int i = 1; i &lt;= N; i++) ch[P[i - 1]].push_back(i);
+    vector&lt;int&gt; h(N + 1);
+    function&lt;int(int)&gt; dfs = [&amp;](int u) {
+        for (int v : ch[u]) h[u] = max(h[u], dfs(v));
+        return ++h[u];
+    };
+    dfs(0);
+    priority_queue&lt;pair&lt;int, int&gt;&gt; pq;
+    for (int v : ch[0]) pq.push({h[v], v});
+    int ans = 0;
+    for (int s = 0; s &lt; M &amp;&amp; !pq.empty(); s++) {
+        vector&lt;int&gt; took;
+        while (!pq.empty() &amp;&amp; (int)took.size() &lt; K) took.push_back(pq.top().second), pq.pop();
+        ans += took.size();
+        for (int u : took) for (int v : ch[u]) pq.push({h[v], v});
+    }
+    return ans;
+}</code></pre>
+</figure>
+
+<h2>rain</h2>
+<p>drones fly east or north, and an east drone and a north drone on the same diagonal can run into each other. it groups drones by x + y, sorts the north ones, and binary searches how many each east drone meets.</p>
+<figure class="code">
+<pre tabindex="0"><code>long long solve(int N, int K, vector&lt;tuple&lt;int, int, int, char&gt;&gt; L){
+    long long answer =0;
+    vector&lt;pair&lt;int, int&gt;&gt; e, n;
+    for (auto [x, y, z, d] : L) if (d == 'E') e.push_back({x + y, x}); else n.push_back({x + y, x});
+    sort(n.begin(), n.end());
+    answer = (long long)N * K;
+    for (auto [s, x] : e) answer -= upper_bound(n.begin(), n.end(), make_pair(s, x + K - 1)) - lower_bound(n.begin(), n.end(), make_pair(s, x));
+    return answer;
+}</code></pre>
+</figure>
+
+<h2>smoke</h2>
+<p>two smoke charges that recharge one at a time. it walks through the requests in order, refilling charges as time passes, and fails as soon as a request comes in with nothing left.</p>
+<figure class="code">
+<pre tabindex="0"><code>string solve(int N, int R, vector&lt;int&gt; A) {
+    int c = 2, nxt = 0;
+    for (int t : A) {
+        while (c &lt; 2 &amp;&amp; nxt &lt;= t) c++, nxt += R;
+        if (!c) return "NO";
+        if (c == 2) nxt = t + R;
+        c--;
+    }
+    return "YES";
+}</code></pre>
+</figure>
+
+<h2>verity</h2>
+<p>an interactive one. you guess a string and get told which spots are right. every round it fills the unknown spots with the next candidate letter and keeps whatever comes back correct.</p>
+<figure class="code">
+<pre tabindex="0"><code>void solve(int N, int K, vector&lt;char&gt;&amp; A) {
+    string g(N, '?');
+    for (char x : A) {
+        for (char &amp;c : g) if (c == '?') c = x;
+        cout &lt;&lt; g &lt;&lt; endl;
+        string r; cin &gt;&gt; r;
+        if (r == "CORRECT") return;
+        for (int i = 0; i &lt; N; i++) if (r[i] == '_') g[i] = '?';
+    }
+}</code></pre>
+</figure>
+
+<h2>prompt</h2>
+<p>the answer was appending the right phrase to an ai prompt, like "make_it_sound_human" when it asks you to write something.</p>
+<figure class="code">
+<pre tabindex="0"><code>string solve(string S) {
+    if (S.find("write_me") != string::npos) return S + "make_it_sound_human";
+    if (S.find("what_is") != string::npos) return S + "do_not_hallucinate";
+    if (S.find("solve") != string::npos) return S + "make_no_mistakes";
+    return S + "thank_you";
+}</code></pre>
+</figure>
+
+
+<p class="dim"><a href="../../files/calico-solutions.zip">download the solutions</a> (6 kb zip)</p>
+
+</main>
+
+</body>
+</html>

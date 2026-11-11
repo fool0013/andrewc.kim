@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>facemood - andrew kim</title>
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+</head>
+
+<body>
+
+<main class="page">
+
+<h1><a href="../../index.html">andrew kim</a> / <a href="../../projects.html">projects</a> / facemood</h1>
+
+<p>a web app that guesses your mood from your webcam. it finds 468 points on your face with
+tensorflow.js, turns them into a few signals (eyes open, smiling, brow raise, head tilt), adds how
+much you're moving and typing, and picks a mood. it all runs in the browser, so nothing gets
+uploaded.</p>
+<p class="dim">it won me some money and a spot on cash app's teen advisory council.</p>
+
+<figure class="shot">
+    <a href="../../img/facemood-early.jpg"><img src="../../img/facemood-early.jpg" width="572" height="399" alt="a webcam frame with a green box drawn around a face, a column of labelled bars down the left side, and the text mood: chill at the bottom" loading="lazy"></a>
+    <figcaption>an early test, running on daniel. this version scored eight emotions and picked the
+    top one. the version that shipped reads the face signals below instead</figcaption>
+</figure>
+
+<h2>reading a face</h2>
+<p>the face model hands back 468 landmarks every frame, and each signal is a ratio between a few of
+them. eye openness is the eye aspect ratio, the two vertical gaps across the eye divided by its
+width, averaged over both eyes. the mouth works the same way, height over width. using ratios means
+it doesn't matter how close you sit to the camera.</p>
+<figure class="code">
+<pre tabindex="0"><code>const LEFT_EYE = [33, 160, 158, 133, 153, 144];
+const RIGHT_EYE = [263, 387, 385, 362, 380, 373];
+
+function eyeOpenness(points, eye) {
+  const [corner1, top1, top2, corner2, bottom2, bottom1] = eye.map((i) =&gt; points[i]);
+  return (dist(top1, bottom1) + dist(top2, bottom2)) / (2 * dist(corner1, corner2));
+}
+
+function eyeAspectRatio(points) {
+  return (eyeOpenness(points, LEFT_EYE) + eyeOpenness(points, RIGHT_EYE)) / 2;
+}
+
+function mouthAspectRatio(points) {
+  return dist(points[13], points[14]) / dist(points[61], points[291]);
+}</code></pre>
+</figure>
+
+<h2>picking a mood</h2>
+<p>motion is how much the picture changes from one frame to the next, and typing speed is keys per
+minute. those two plus the face signals go through a few rules, and the first one that matches wins.
+the rules are just thresholds.</p>
+<figure class="code">
+<pre tabindex="0"><code>function inferMood({ eyesOpen, smiling, motion, keysPerMinute }) {
+  const arousal = Math.max(motion, eyesOpen ?? 0);
+  if (keysPerMinute &gt; 220 || arousal &gt; 0.8) return "energetic";
+  if (keysPerMinute &gt; 120 || (arousal &gt; 0.5 &amp;&amp; smiling &lt; 0.3)) return "focus";
+  if ((smiling ?? 0) &lt; 0.15 &amp;&amp; arousal &lt; 0.25) return "melancholy";
+  if (arousal &lt; 0.45) return "chill";
+  return "happy";
+}</code></pre>
+</figure>
+
+
+<p class="dim"><a href="../../files/facemood.zip">download the code</a> (35 kb zip)</p>
+
+</main>
+
+</body>
+</html>

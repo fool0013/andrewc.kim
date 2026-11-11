@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>semantic multiplicity - andrew kim</title>
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+</head>
+
+<body>
+
+<main class="page">
+
+<h1><a href="../../index.html">andrew kim</a> / <a href="../../research.html">research</a> / semantic multiplicity</h1>
+
+<h2>semantic multiplicity creates strategic flexibility in streaming ai agents <span class="yr">2026</span></h2>
+<p class="dim">co-author, one of seven, marked equal contribution. accepted to the economics for
+machine learning workshop at neurips 2026.
+<a href="../../files/semantic-multiplicity.pdf">the paper</a>.</p>
+<p>economic models usually treat an action, like a bid or a contract, as one choice that happens
+all at once. ai agents don't work like that. they write an action out piece by piece, and some
+systems show the partial output before it's final. model apis stream tool-call arguments as
+they're generated, and agent frameworks can pause a half-written action for someone to review.
+if the other side can react to a half-finished action, how the action is written starts to
+matter.</p>
+<p>the paper looks at what happens when two different payloads decode to the same final action,
+which we call semantic multiplicity. in the smallest example, a supplier picks contract a, b, or c
+by sending two bits, and b can be written two ways:</p>
+<figure class="code small">
+<pre tabindex="0"><code>00 -&gt; a
+01 -&gt; b
+10 -&gt; b
+11 -&gt; c</code></pre>
+<figcaption>after a first bit of 0, a or b is still possible. after a 1, b or c is</figcaption>
+</figure>
+<p>the buyer sees the first bit and can respond before the second. whichever bit the supplier
+sent, b is still on the table, so the supplier can wait for the response and then decide. if b had
+only one spelling, the first bit would already rule it out on one side.</p>
+<p>the theory works out exactly which patterns of still-possible actions an interface can create,
+and the minimum number of codewords, extra copies, and length it takes to build one. one extra
+copy can be worth everything. in a game built on the example above, the supplier is guaranteed to
+win with the second spelling of b and gets nothing without it. two fixes take the advantage away in
+different ways. one allows a single spelling per action, the other holds the whole payload back
+until it's finished (buffering). counting menus isn't enough either. two interfaces can expose the same
+menus at every step and still have opposite best first moves, because what matters is which menu
+follows which.</p>
+<p>then we tested whether real models use this. we fixed 20 synthetic procurement problems ahead
+of time and ran each one four ways, one spelling per contract or several, streamed or buffered.
+streamed, extra spellings raised gemini 3.6 flash's payoff by 1.90 units and deepseek v4 flash's
+by 1.40. buffered, they changed it by about zero. in a later run, deepseek v4 pro got the full
+possible gain on all 20. in a second test that changed only the deeper structure of the
+interface, both models picked the best first move on both versions, in both display orders, in
+17 of 20 cases.</p>
+<p>last, we ran it end to end, with a gemini model as the supplier and a deepseek model as the buyer,
+trading a streamed json quote through langgraph, with timestamped traces showing the supplier
+change the unfinished part of its quote after the buyer answered.</p>
+<p>what the paper doesn't measure is how often real deployments meet all the conditions for
+this. that's still open.</p>
+
+</main>
+
+</body>
+</html>

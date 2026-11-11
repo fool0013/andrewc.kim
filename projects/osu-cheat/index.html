@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>osu bot - andrew kim</title>
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+</head>
+
+<body>
+
+<main class="page">
+
+<h1><a href="../../index.html">andrew kim</a> / <a href="../../projects.html">projects</a> / osu bot</h1>
+
+<p>a bot that plays <a href="https://osu.ppy.sh/">osu!</a> on its own. it follows the song by
+reading the game's memory, parses the map to know where every note is, and presses the keys to hit
+them in time. it works for standard, as a relax bot that taps while you still aim, and for mania at
+every key count.</p>
+<p>osu! can catch this. the keys go through sendinput and the timing it produces is far more even
+than a person's, so a score it sets online gets flagged and takes the account with it. don't run it
+signed in.</p>
+
+<figure class="shot">
+    <video controls preload="none" poster="../../img/osu-bot-poster.jpg" width="1280" height="720" muted>
+        <source src="../../files/osu-bot.mp4" type="video/mp4">
+        <track kind="captions" src="../../files/osu-bot.vtt" srclang="en" label="english">
+    </video>
+    <figcaption>the bot playing a 7k mania map, 2771 notes. no audio</figcaption>
+</figure>
+<figure class="code">
+<pre tabindex="0"><code>$ python bot.py --help
+usage: bot.py [-h] [--offset OFFSET] [--tap-ms TAP_MS]
+              [--mania-keys LAYOUT [LAYOUT ...]]
+
+key bot for osu! stable (standard relax and mania)
+
+options:
+  -h, --help            show this help message and exit
+  --offset OFFSET       press this many ms early (negative for late)
+  --tap-ms TAP_MS       how long a tap holds the key
+  --mania-keys LAYOUT [LAYOUT ...]
+                        mania layouts, one per key count, e.g. "dfjk" "sdf
+                        jkl"</code></pre>
+<figcaption>the help text. run it, start a map in osu!, and it plays</figcaption>
+</figure>
+
+<h2>finding the game in memory</h2>
+<p>the bot needs the song's clock, the current map, and whether a map is even playing, and osu!
+doesn't expose any of that. it has to read it out of the game's memory. the addresses move whenever
+osu! updates, though, so hardcoded ones would break on the next update.</p>
+<p>so it does what a memory scanner does. for each value, it searches the running process for a
+short, stable pattern of bytes from the machine code near where osu! touches that value, then reads
+the pointer sitting at a fixed offset from the match. the <code>??</code> bytes are wildcards, for
+the parts that do change between builds.</p>
+<figure class="code">
+<pre tabindex="0"><code>PATTERNS = {
+    "base": "F8 01 74 04 83 65",
+    "play_time": "5E 5F 5D C3 A1 ?? ?? ?? ?? 89 ?? 04",
+    "status": "48 83 F8 04 73 1E",
+    ...
+}
+
+class Osu:
+    def __init__(self, process):
+        found = process.scan(PATTERNS)
+        missing = sorted(set(PATTERNS) - set(found))
+        if missing: raise LookupError("signatures not found: " + ", ".join(missing))
+
+        self.beatmap_slot = process.uint32(found["base"] - 0xC)
+        self.time_address = process.uint32(found["play_time"] + 0x5)
+        self.status_address = process.uint32(found["status"] - 0x4)</code></pre>
+</figure>
+<p>after that, reading the clock is one memory read. <code>audio_time()</code> returns the
+milliseconds osu! is into the song.</p>
+
+<h2>reading the map</h2>
+<p>.osu files are plain text split into sections. the parser pulls out the hit objects and converts
+each one into a timestamp. for standard it walks the timing points to turn a slider's length into a
+real duration. for mania it maps each note's horizontal position into a column with
+<code>x * keys / 512</code>, since the format stores columns as x
+coordinates across a 512-wide playfield.</p>
+<figure class="code">
+<pre tabindex="0"><code>def parse_mania_objects(lines, key_count):
+    objects = []
+    for line in lines:
+        fields = line.split(",")
+        time = int(float(fields[2]))
+        column = min(int(float(fields[0]) * key_count / 512), key_count - 1)
+        end_time = int(float(fields[5].split(":")[0])) if int(fields[3]) &amp; HOLD else time
+        objects.append(HitObject(time, max(end_time, time), column))
+    objects.sort(key=lambda hit: hit.time)
+    return objects</code></pre>
+</figure>
+
+<h2>playing in time</h2>
+<p>the rest is staying in sync. the notes are sorted by time, and the bot holds an index into them.
+each tick it reads the song's current time from memory and fires every note whose time has passed.
+if you skip ahead or retry, the clock jumps backwards, so it finds its place again with a binary
+search and lets go of anything it was holding.</p>
+<figure class="code">
+<pre tabindex="0"><code>def play(osu, objects, presser, offset):
+    starts = [hit.time for hit in objects]
+    previous = osu.audio_time() + offset
+    index = bisect.bisect_left(starts, previous)
+    while osu.status() == PLAYING:
+        if stop_reason(): return
+        now = osu.audio_time() + offset
+        if now &lt; previous - SEEK_THRESHOLD_MS:
+            presser.release_all()
+            index = bisect.bisect_left(starts, now)
+        previous = now
+        presser.update(now)
+        while index &lt; len(objects) and objects[index].time &lt;= now:
+            presser.hit(objects[index])
+            index += 1</code></pre>
+</figure>
+
+<h2>pressing the keys</h2>
+<p>keypresses go through the windows <code>SendInput</code> api as scan codes. in standard the bot
+alternates between two keys. in mania each column gets its own key, and long notes stay held until
+their end time. pressing end stops everything.</p>
+<figure class="code">
+<pre tabindex="0"><code>class Hands(KeyPresser):
+    def __init__(self, codes, tap_ms):
+        super().__init__(codes, tap_ms)
+        self.turn = 0
+
+    def hit(self, hit):
+        preferred = [self.turn, 1 - self.turn]
+        free = [index for index in preferred if self.release_at[index] is None]
+        index = free[0] if free else preferred[0]
+        self.press(index, hit)
+        self.turn = 1 - index</code></pre>
+</figure>
+
+
+<p class="dim"><a href="../../files/osu-bot.zip">download the code</a> (13 kb zip)</p>
+
+</main>
+
+</body>
+</html>

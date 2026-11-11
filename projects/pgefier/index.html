@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pgefier - andrew kim</title>
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+</head>
+
+<body>
+
+<main class="page">
+
+<h1><a href="../../index.html">andrew kim</a> / <a href="../../projects.html">projects</a> / pgefier</h1>
+
+<p>i wanted my mic to sound like the youtuber darklordpge, so i measured his voice off his uploads
+and wrote a tool that fits my mic's eq to match it. the eq runs as an effect on the mic itself, so
+discord, games, obs, and anything else that opens the mic all get the matched sound, with no virtual
+device to set up.</p>
+<p>it only touches the eq, so it's still my voice, just with his tone.</p>
+
+<h2>measuring a voice</h2>
+<p>first it turns a recording into a curve. it ffts the audio in short frames, subtracts the stereo
+side channel so mostly the centered voice is left, keeps the loudest frames (the speech), and
+subtracts the quietest ones (the room). then it normalizes everything to the 1 khz band, so
+recordings at different volumes line up. i ran that over three of pge's videos to get his target
+curve, and the same function measures my mic.</p>
+<figure class="code">
+<pre tabindex="0"><code>def voice_curve(M, S, sr, bands):
+    N,hop = 2048,512; win=np.hanning(N)
+    idx,nf = frames(M,N,hop)
+    PM = np.abs(np.fft.rfft(M[idx]*win,axis=1))**2
+    PS = np.abs(np.fft.rfft(S[idx]*win,axis=1))**2
+    PV = np.maximum(PM-PS,0.) if np.any(S) else PM
+    f  = np.fft.rfftfreq(N,1/sr)
+    sb = (f&gt;=300)&amp;(f&lt;3400)
+    e  = 10*np.log10(np.maximum(PV[:,sb].sum(axis=1),1e-20))
+    act, bed = e&gt;=np.percentile(e,75), e&lt;=np.percentile(e,15)
+    vs  = np.maximum(PV[act].mean(axis=0)-PV[bed].mean(axis=0),1e-20)
+    ref = 10*np.log10(vs[(f&gt;=900)&amp;(f&lt;1100)].mean())
+    keys = sorted(bands,key=int); hi=[int(k) for k in keys]+[12500]
+    cur = {k: float(10*np.log10(vs[(f&gt;=int(k))&amp;(f&lt;hi[i+1])].mean())-ref)
+           for i,k in enumerate(keys)}
+    lv = 10*np.log10(np.maximum((M[idx]**2).mean(axis=1),1e-20))
+    return cur, lv[act], act.sum()</code></pre>
+</figure>
+<p>his curve comes out about +11 db at 100-125 hz, falling to about -24 db by
+6.3 khz. the bass mostly comes from him sitting 2-4 inches from the grille.</p>
+
+<h2>solving the eq</h2>
+<p>the eq software gives me three peaking bands and a high-pass, and each band's gain caps at +/-12
+db. so it's a fitting problem. pick a frequency, a q, and a gain for each band so the total response
+lands as close to his curve as possible. each band picks from a small grid of frequencies and q
+values, with gains from -12 to +12.</p>
+<figure class="code">
+<pre tabindex="0"><code>GRID = {
+ "low":  dict(freq=[125,150,175,200,225,250],                    q=[0.5,1,2,3,4.5]),
+ "mid":  dict(freq=[400,450,500,600,700,800,900,1000,1150,1250], q=[0.5,1,2,2.5,3]),
+ "high": dict(freq=[3000,4000,4650,5000,5650,6000,6250],          q=[0.5,1,2,3.5,5]),
+}
+GAINS = list(range(-12,13))</code></pre>
+</figure>
+<p>the fit is coordinate descent. hold two bands fixed, brute-force the third against whatever error
+is left, move on to the next band, and loop until a full pass stops improving (or six passes,
+whichever comes first).</p>
+<figure class="code">
+<pre tabindex="0"><code>def fit(desired, fc, w):
+    cur = {k: dict(frequency=GRID[k]["freq"][0], gain=0, q=1.0) for k in GRID}
+    def total(exclude=None):
+        t = np.zeros_like(fc)
+        for k,v in cur.items():
+            if k!=exclude: t += peak_resp(fc, v["frequency"], v["gain"], v["q"])
+        return t
+    prev = None
+    for _ in range(6):
+        for k in ("low","high","mid"):
+            resid = desired - total(exclude=k)
+            bb, be = None, None
+            for f0 in GRID[k]["freq"]:
+                for q in GRID[k]["q"]:
+                    for g in GAINS:
+                        err = float(np.sum(w*(resid-peak_resp(fc,f0,g,q))**2))
+                        if be is None or err &lt; be: be, bb = err, dict(frequency=f0,gain=g,q=q)
+            cur[k] = bb
+        e = float(np.sum(w*(desired-total())**2))
+        if prev is not None and abs(prev-e) &lt; 1e-6: break
+        prev = e
+    return cur, total()</code></pre>
+</figure>
+
+<h2>limits</h2>
+<p>his curve needs about -24 db at 6.3 khz and the bands stop at -12, so the de-esser and noise
+reduction do the rest of the treble cut. and since most of his low end is mic distance, the eq can
+only imitate it. sitting closer to the mic would do more than any of this.</p>
+
+
+<p class="dim"><a href="../../files/pgefier.zip">download the code</a> (8 kb zip)</p>
+
+</main>
+
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lean provers - andrew kim</title>
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+</head>
+
+<body>
+
+<main class="page">
+
+<h1><a href="../../index.html">andrew kim</a> / <a href="../../research.html">research</a> / lean provers</h1>
+
+<h2>same text, different transitions: action insufficiency in lean provers <span class="yr">2026</span></h2>
+<p class="dim">co-author, with edison yang, neel marripalapu and akshaj agadi. accepted to mathnlp 2026.
+<a href="../../files/lean-action-insufficiency.pdf">the paper</a>.</p>
+<p>lean is a proof assistant. a proof is a series of steps called tactics, and lean checks each
+one against the current proof state. neural provers are shown the printed text of that state and
+asked for the next tactic, and some proof searches also use that text to decide when two states
+are the same, so they can merge them. both assume that two states that print the same will react
+the same way to the same tactic.</p>
+<p>searching mathlib, lean's main math library, we found 70 classes of states
+that print identically, each confirmed on fresh sessions. in 68 of them, one tactic succeeds on
+one state and fails on another, which gives 103 contradictory cases, all verified by lean. one
+came from a single mathlib proof:</p>
+<figure class="code small">
+<pre tabindex="0"><code>intro h; simp   then simp: fails
+simp; intro h   then simp: succeeds</code></pre>
+<figcaption>both states print as the same 206 bytes</figcaption>
+</figure>
+<p>the difference is structure that lean's notation hides. here, and in 56 of the 70 classes, it's
+a coercion. one state holds <code>ENNReal.ofNNReal x</code> and the other
+<code>@WithTop.some NNReal x</code>. they mean the same thing and both print as &uarr;x, but
+<code>simp</code> checks for progress syntactically, so it can rewrite one and report "no
+progress" on the other. we also built pairs that differ only in that hidden structure, and the
+tactic's result flipped in 11 of 13. all 8 we rebuilt on current lean and mathlib flipped too.</p>
+<p>a model given only the text can't tell the two states apart, so it has to guess. a small model
+given a compact structural sketch of each state ranked 97 of the 103 pairs correctly on theorems
+it hadn't seen. it mostly didn't carry over to kinds of hidden difference it hadn't trained on,
+though. with the coercion cases held out, it was at chance. a frozen 7b prover given the same
+sketch without training stayed near chance too.</p>
+<p>whether this costs proofs depends on the search. in a benchmark of 96 pairs with a known proof,
+merging states by identical text threw the proof away in 48.4% of the cases where the search
+reached a matching state. keying states by a hash of their structure kept every proof, for 8%
+more runtime (printing everything verbosely instead costs 179%). that rate only counts searches
+that actually hit a match. in blind sampling, confirmed matches showed up at just 0.29% of
+search roots.</p>
+<p>so the fix we suggest is to keep giving the model the readable text, but to identify search
+states by structure.</p>
+
+</main>
+
+</body>
+</html>

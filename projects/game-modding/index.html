@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>game modding - andrew kim</title>
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+</head>
+
+<body>
+
+<main class="page">
+
+<h1><a href="../../index.html">andrew kim</a> / <a href="../../projects.html">projects</a> / game modding</h1>
+
+<p>i mod games for fun. rpg maker games ship their scripts, maps, and art inside a single encrypted
+archive, so to get at them i wrote ruby tools that unpack the two formats xp and vx ace use (rgssad
+v1 and v3).</p>
+
+<h2>the encryption</h2>
+<p>both formats xor the data in 4-byte blocks against a running key, and the key steps forward by
+<code>k * 7 + 3</code> after each block. xp starts the key at a fixed
+<code>0xdeadcafe</code>, while vx ace derives it from a seed stored in the archive header. that's
+the only real difference between the two. once you know the schedule, the same routine decrypts the
+file table and every file in it.</p>
+<figure class="code">
+<pre tabindex="0"><code>$ xxd -l 48 Game.rgss3a
+00000000: 5247 5353 4144 0003 3412 ed5e 10a3 5556  RGSSAD..4..^..UV
+00000010: b6a8 5556 aac9 a14c c3a3 5556 93c2 2137  ..UV...L..UV..!7
+00000020: 8bf0 3624 bed3 2125 f9d1 2332 b6d7 3464  ..6$..!%..#2..4d
+
+$ ruby rgss3a_extract.rb Game.rgss3a extracted
+  -&gt; Data\Scripts.rvdata2 (2913 bytes)
+  -&gt; Data\System.rvdata2 (1406 bytes)
+  -&gt; Data\Map001.rvdata2 (3720 bytes)
+  -&gt; Graphics\Titles1\Title.png (4096 bytes)
+  -&gt; Audio\BGM\Theme.ogg (5120 bytes)
+scanned 5, extracted 5</code></pre>
+<figcaption>the extractor running on a test archive</figcaption>
+</figure>
+<figure class="code">
+<pre tabindex="0"><code>bin = File.binread(src)
+abort "not RGSSAD v3" unless bin[0, 8] == "RGSSAD\0\x03".b
+
+seed = bin[8, 4].unpack1('V')
+key = (seed * 9 + 3) &amp; 0xFFFFFFFF
+pos = 12
+
+advance = -&gt;(k) { (k * 7 + 3) &amp; 0xFFFFFFFF }
+
+decrypt_data = lambda do |bytes, fkey|
+  out = String.new(capacity: bytes.bytesize)
+  k = fkey
+  i = 0
+  while i &lt; bytes.bytesize
+    take = [4, bytes.bytesize - i].min
+    take.times do |j|
+      out &lt;&lt; ((bytes.getbyte(i + j) ^ ((k &gt;&gt; (j * 8)) &amp; 0xFF)) &amp; 0xFF).chr
+    end
+    k = advance.call(k)
+    i += take
+  end
+  out
+end
+
+count = 0
+extracted = 0
+while pos &lt; bin.bytesize
+  offset = bin[pos, 4].unpack1('V') ^ key; pos += 4
+  break if offset == 0
+  size     = bin[pos, 4].unpack1('V') ^ key; pos += 4
+  fkey     = bin[pos, 4].unpack1('V') ^ key; pos += 4
+  name_len = bin[pos, 4].unpack1('V') ^ key; pos += 4
+  name_bytes = bin[pos, name_len].bytes; pos += name_len
+  key_bytes = [key].pack('V').bytes
+  name = name_bytes.each_with_index.map { |b, i| (b ^ key_bytes[i % 4]).chr }.join</code></pre>
+</figure>
+
+<h2>games that don't pack like that</h2>
+<p>plenty of games just keep their values in memory while they run. for those i use cheat engine.
+scan for a value, change it in game, scan again for the new value, and repeat until only the real
+address is left. then i can set it to whatever i want.</p>
+
+
+<p class="dim"><a href="../../files/game-modding.zip">download the extractors</a> (2 kb zip)</p>
+
+</main>
+
+</body>
+</html>
