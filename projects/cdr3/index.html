@@ -14,14 +14,13 @@
 
 <h1><a href="/">andrew kim</a> / <a href="/projects">projects</a> / cdr3</h1>
 
-<p>a science fair project about antibody design, called abyss, built with daniel li. an antibody
-grabs its target through a short loop called cdr3, and which target it grabs depends mostly on that
-loop's sequence, so if you can score a loop against a target you can then go looking for loops that
-bind it better</p>
-<p>the data is about a thousand real antibody and target pairs pulled out of solved protein
-structures, plus the same proteins shuffled into pairs that don't go together so there's something
-to tell apart. both sequences go through esm-2, a protein language model that turns amino acids into
-vectors. it won a $2000 grant, and we presented it to representative rich mccormick.</p>
+<p>antibody deisgn focused sci fair project. antibodies grab targets through a short loop caled cdr3,
+and the target grabbed mostly depends on the sequence of that loop. if you can score a loop against said
+target you can then go look for loops that bind it better.</p>
+<p>the data is ~1000 real antibody and target pairs from solved protein structures, plus the same proteins 
+shuffled into mismatched pairs to serve as negatives (proxy negs cuz i couldnt get more data). both sequences 
+go through esm-2, a protein language model that turns amino acids into vectors. Won a $2000 grant, and 
+presented to representative rich mccormick.</p>
 
 <figure class="shot tall">
     <a href="/img/abyss-poster.jpg"><img src="/img/abyss-poster.jpg" width="820" height="1255" alt="the abyss poster, out of focus" loading="lazy"></a>
@@ -84,7 +83,7 @@ seeds, grouped so that no target is ever on both sides of a split.</p>
 <h2>searching for a better loop</h2>
 <p>once something can score a pair you can go hunting for a good one. it starts from a real loop,
 mutates one amino acid at a time while keeping the cysteine that every cdr3 opens with, scores every
-candidate in the pool against the target, and keeps the best twenty. a few hundred rounds of that is
+candidate in the pool against the target, and keeps the best 20. a few hundred rounds of that is
 a beam search over sequence space.</p>
 <figure class="code">
 <pre tabindex="0"><code>def mutate(seq, k=1):
@@ -103,13 +102,13 @@ against the scorer, so it only finds a better binder if the scorer is right, and
 is right more often than not and that is about all you can say for it. a thousand pairs is not much
 to work with. the next thing i would try is the window idea pushed further, letting the model look
 at a few patches at once instead of only the single best one, since real binding sites are bigger
-than sixteen amino acids.</p>
+than 16 amino acids.</p>
 
 
 <p class="dim"><a href="/files/cdr3-abyss.zip">download the code</a> (191 kb zip)</p>
 
 <footer>
-    <span title="this page, judged like a cp submission: 1 s limit">verdict:</span>
+    <span title="judged like cp submission 1s limit">verdict:</span>
     <span id="verdict">running on test 1...</span>
 </footer>
 
