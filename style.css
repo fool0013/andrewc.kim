@@ -140,7 +140,8 @@ h2 {
     border: 1px solid #ccc;
 }
 
-.shot.tall img {
+.shot.tall img,
+.shot.tall video {
     width: auto;
     max-width: 100%;
     max-height: 600px;
